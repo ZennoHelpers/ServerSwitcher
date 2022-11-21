@@ -1,0 +1,11 @@
+[package]
+name = "server_changer"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+winreg = "0.10.1"
+quick-xml = "0.26.0"
+url = "2.3.1"
