@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::ESTIMATED_EXE_CFG_SIZE;
 
-pub(crate) fn change_server(
+pub(crate) fn switch_server(
     exe_cfg_file: &mut File,
     exe_cfg_path: &PathBuf,
     server_domain: &str,
