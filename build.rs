@@ -66,12 +66,12 @@ fn main() {
         ]);
     
         let rc_data = format!(
-            r#"#define VER_COMPANYNAME_STR         "{authors}"
-#define VER_FILEDESCRIPTION_STR     "{pkg_description}"
-#define VER_INTERNALNAME_STR        "{pkg_name}"
+            r#"#define VER_COMPANYNAME_STR         "{authors}\0"
+#define VER_FILEDESCRIPTION_STR     "{pkg_description}\0"
+#define VER_INTERNALNAME_STR        "{pkg_name}\0"
 
-#define VER_ORIGINALFILENAME_STR   "{pkg_name}.exe"
-#define VER_PRODUCTNAME_STR        "Server Switcher"
+#define VER_ORIGINALFILENAME_STR   "{pkg_name}.exe\0"
+#define VER_PRODUCTNAME_STR        "Server Switcher\0"
 
 #define VERSION                     {version_with_commas}
 #define VERSION_STR                 "{version}\0"
