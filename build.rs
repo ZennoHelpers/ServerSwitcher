@@ -61,7 +61,7 @@ fn main() {
     
         set_linker_args(&[
             "/MANIFEST:EMBED", // requires for '/MANIFESTINPUT'
-            "/MANIFESTINPUT:server_switcher.exe.manifest", // set default 'requestedExecutionLevel' to tell UAC doesn't emulate paths like for the old application
+            &format!("/MANIFESTINPUT:{pkg_name}.exe.manifest"), // set default 'requestedExecutionLevel' to tell UAC doesn't emulate paths like for the old application
             "/MANIFESTUAC:level='requireAdministrator'", // set custom 'requestedExecutionLevel' in manifest
         ]);
     
