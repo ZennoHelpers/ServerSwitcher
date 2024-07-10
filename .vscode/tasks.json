@@ -1,0 +1,70 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "icon": {
+        "id": "wrench",
+        "color": "terminal.ansiGreen"
+      },
+      "type": "cargo",
+      "command": "build",
+      "args": [
+      ],
+      "runOptions": {
+        "instanceLimit": 1,
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+				"env": {
+					"WIN_KITS_BIN_X64_PATH": ""
+				},
+      },
+      "problemMatcher": [
+        "$rustc"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": true,
+        "revealProblems": "onProblem",
+        "close": false,
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false,
+      },
+    },
+    {
+      "label": "Fmt",
+      "icon": {
+        "id": "eye",
+        "color": "terminal.ansiYellow"
+      },
+      "type": "cargo",
+      "command": "fmt",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      },
+      "problemMatcher": [
+        "$rustc"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": true,
+        "revealProblems": "onProblem",
+        "close": false
+      }
+    },
+  ]
+}

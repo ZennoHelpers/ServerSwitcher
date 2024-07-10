@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use std::io::ErrorKind;
 use std::path::PathBuf;
 
 use winreg::enums::HKEY_CURRENT_USER;
@@ -15,16 +14,7 @@ pub(crate) struct Product {
 
 impl Product {
     fn new(name: String, ver: String, lang: String, install_path: String) -> Result<Self, String> {
-        let exe_names: &'static [&'static str] =
-            if name.contains("ZennoPoster") && name.contains("V7") {
-                &["ProjectMaker", "ZennoPoster"]
-            } else if name.contains("ZennoDroid") {
-                &["ProjectMakerZD", "ZennoDroid"]
-            } else if name.contains("ZennoBox") && name.contains("V7") {
-                &["ZennoBox"]
-            } else {
-                return Err(format!("Unsupported product: '{} {} {}'", name, ver, lang));
-            };
+        let exe_names: &'static [&'static str] = get_exe_names(&name, &ver, &lang)?;
 
         Ok(Self {
             name,
@@ -42,125 +32,121 @@ impl Display for Product {
     }
 }
 
+fn get_exe_names(name: &str, ver: &str, lang: &str) -> Result<&'static [&'static str], String> {
+    Ok(if name.contains("ZennoPoster") && name.contains("V7") {
+        &["ProjectMaker", "ZennoPoster"]
+    } else if name.contains("ZennoProjectMaker") {
+        &["ProjectMaker", "ProjectMakerZD"]
+    } else if name.contains("ZennoDroid") {
+        &["ProjectMakerZD", "ZennoDroid"]
+    } else if name.contains("ZennoBox") && name.contains("V7") {
+        &["ZennoBox"]
+    } else if name.contains("ProxyChecker") {
+        &["ProxyChecker"]
+    } else if name.contains("CapMonster") {
+        &["CapMonster", "CapMonsterMCS", "LicenseHelper"]
+    } else {
+        return Err(format!("Unsupported product: '{} {} {}'", name, ver, lang));
+    })
+}
+
 pub(crate) fn products_searcher() -> Result<Vec<Product>, String> {
     println!("Начат поиск поддерживаемых продуктов...\n");
-    
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let zl_root = hkcu.open_subkey(r"Software\ZennoLab").map_err(|e| {
-        format!(r"Не удалось открыть 'HKEY_CURRENT_USER\Software\ZennoLab'. Инфо: '{e}'")
-    })?;
-    
+
     let mut products = Vec::<Product>::with_capacity(10);
-    
-    const KNOWN_LANGS: &[&str] = &["RU", "EN", "CN"];
-    
-    for lang in KNOWN_LANGS {
-        let lang_key = match zl_root.open_subkey(lang) {
-            Ok(r) => r,
-            Err(e) => {
-                if e.kind() != ErrorKind::NotFound {
-                    println!(r"Не удалось открыть раздел языка: '{lang}'. Инфо: '{e}'");
-                }
 
-                continue;
-            }
-        };
+    RegKey::predef(HKEY_CURRENT_USER).open_subkey(r"Software\ZennoLab").consume(|zl_root| {
+        zl_root.enum_keys().for_each(| key | {
+            key.consume(| key | {
+                if key.len() == 2 && key == key.to_uppercase() {
+                    let lang = key;
 
-        for prod_name_res in lang_key.enum_keys() {
-            let prod_name = &match prod_name_res {
-                Ok(r) => r,
-                Err(e) => {
-                    println!(
-                        r"Ошибка при разборе имени раздела продукта в разделе языка: '{lang}'. Инфо: '{e}'"
-                    );
-                    continue;
-                }
-            };
-    
-            if prod_name.contains("V7") || prod_name.contains("ZennoDroid") {
-                let prod_key = match lang_key.open_subkey(prod_name.clone()) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        println!(
-                            r"Не удалось открыть раздел продукта: '{prod_name}' языка: '{lang}'. Инфо: '{e}'"
-                        );
-                        continue;
-                    }
-                };
-        
-                for ver_res in prod_key.enum_keys() {
-                    let ver = match ver_res {
-                        Ok(r) => r,
-                        Err(e) => {
-                            println!(
-                                r"Ошибка при разборе имени раздела версии в разделе продукта: '{prod_name}' языка: '{lang}'. Инфо: '{e}'"
-                            );
-                            continue;
-                        }
-                    };
-            
-                    let ver_key = match prod_key.open_subkey(ver.clone()) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            println!(
-                                r"Не удалось открыть раздел продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
-                            );
-                            continue;
-                        }
-                    };
-            
-                    match ver_key.get_value::<String, _>("SuccessInstall") {
-                        Ok(r) => {
-                            if r != *"True" {
+                    zl_root.open_subkey(lang.clone()).consume(|lang_key| {
+                        lang_key.enum_keys().for_each(|prod_name_res| {
+                            prod_name_res.consume(|prod_name| {
+                                lang_key.open_subkey(&prod_name).consume(|prod_key| {
+                                    prod_key.enum_keys().for_each(|ver_res| {
+                                        ver_res.consume(|ver| {
+                                            prod_key.open_subkey(&ver).consume(|ver_key| {
+                                                ver_key.get_value::<String, _>("SuccessInstall").consume(|install| {
+                                                        if install != "True" {
+                                                            println!(r"Найден недоустановленный продукт: '{prod_name} {ver} {lang}'");
+                                                        }
+                                                    }, |e| {
+                                                        println!(r"Не удалось получить статус установки продукта: '{prod_name} {ver} {lang}'. Инфо: {e}");
+                                                    });
+
+                                                ver_key.get_value("InstallDir").consume(|install_path: String| {
+                                                    Product::new(
+                                                        prod_name.clone(),
+                                                        ver.clone(),
+                                                        lang.to_owned(),
+                                                        install_path,
+                                                    ).consume(|product| {
+                                                            println!("Найден продукт: '{}'", &product);
+                                                            products.push(product)
+                                                        }, |e| {
+                                                            println!("{}", e);
+                                                        });
+                                                }, |e| {
+                                                    println!(
+                                                        r"Не удалось получить путь установки продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
+                                                    );
+                                                });
+                                            }, |e| {
+                                                println!(
+                                                    r"Не удалось открыть раздел продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
+                                                );
+                                            });
+                                        }, |e| {
+                                            println!(
+                                                r"Ошибка при разборе имени раздела версии в разделе продукта: '{prod_name}' языка: '{lang}'. Инфо: '{e}'"
+                                            );
+                                        });
+                                    });
+                                }, |e| {
+                                    println!(
+                                        r"Не удалось открыть раздел продукта: '{prod_name}' языка: '{lang}'. Инфо: '{e}'"
+                                    );
+                                });
+                            }, |e| {
                                 println!(
-                                    r"Найден недоустановленный продукт: '{prod_name} {ver} {lang}'"
+                                    r"Ошибка при разборе имени раздела продукта в разделе языка: '{lang}'. Инфо: '{e}'"
                                 );
-                                continue;
-                            }
-                        }
-                        Err(e) => {
-                            println!(
-                                r"Не удалось получить статус установки продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
-                            );
-                            continue;
-                        }
-                    }
-            
-                    match ver_key.get_value("InstallDir") {
-                        Ok(install_path) => {
-                            match Product::new(
-                                prod_name.to_string(),
-                                ver,
-                                lang.to_string(),
-                                install_path,
-                            ) {
-                                Ok(r) => {
-                                    println!("Найден продукт: '{}'", &r);
-                                    products.push(r)
-                                }
-                                Err(e) => {
-                                    println!("{}", e);
-                                    continue;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            println!(
-                                r"Не удалось получить путь установки продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
-                            );
-                            continue;
-                        }
-                    }
+                            });
+                        });
+                    }, |e|{
+                        println!(r"Не удалось открыть раздел языка: '{lang}'. Инфо: '{e}'");
+                    });
                 }
-            }
-        }
-    }
-    
+            }, |e|{
+                println!(r"Не удалось получить раздел реестра в 'HKEY_CURRENT_USER\Software\ZennoLab'. Инфо: '{e}'");
+            });
+        });
+
+        }, |e| {
+            println!(r"Не удалось открыть 'HKEY_CURRENT_USER\Software\ZennoLab'. Инфо: '{e}'")
+        });
+
     if products.is_empty() {
         return Err(r"Не найден ни один установленный продукт.".to_string());
     }
-    
+
     println!();
-    
+
     Ok(products)
+}
+
+trait ResultConsumerTrait<R, E> {
+    fn consume<F1: FnOnce(R), F2: FnOnce(E)>(self, f1: F1, f2: F2);
+}
+
+impl<R, E> ResultConsumerTrait<R, E> for Result<R, E> {
+    #[inline]
+    fn consume<F1: FnOnce(R), F2: FnOnce(E)>(self, f1: F1, f2: F2) {
+        match self {
+            Ok(r) => f1(r),
+            Err(e) => f2(e),
+        }
+    }
 }
