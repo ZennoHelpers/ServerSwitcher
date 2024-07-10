@@ -15,11 +15,11 @@ pub(crate) fn server_selection(server_index: Option<usize>) -> Result<&'static s
         return Ok(servers_list[r - 1])
     }
     
-    println!("Выберите сервер:");
-    
     for x in servers_list.iter().enumerate() {
         println!("{}: '{}'", x.0 + 1, x.1)
     }
+    
+    println!("\nУкажите индекс сервера и нажмите Enter:");
     
     let buffer = &mut String::with_capacity(3);
     for _ in 1..=3 {
@@ -39,7 +39,7 @@ pub(crate) fn server_selection(server_index: Option<usize>) -> Result<&'static s
         };
         
         if let Some(r) = servers_list.get(index) {
-            println!("Выбран: '{}'\n", r);
+            println!("\nВыбран: '{}'\n", r);
             return Ok(r);
         }
     }
