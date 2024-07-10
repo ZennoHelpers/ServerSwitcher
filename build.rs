@@ -49,7 +49,7 @@ fn main() {
                     &[
                         "/nologo",
                         "/validate_manifest",
-                      //"/validate_file_hashes",
+                        //"/validate_file_hashes",
                         "/check_for_duplicates",
                         "/manifest",
                         manifest_fullname,
@@ -57,8 +57,8 @@ fn main() {
                 );
 
                 set_linker_args(&[
-                    "/MANIFEST:EMBED",                           // requires for '/MANIFESTINPUT'
-           &format!("/MANIFESTINPUT:{pkg_name}.exe.manifest"),   // set default 'requestedExecutionLevel' to tell UAC doesn't emulate paths like for the old application
+                    "/MANIFEST:EMBED",                                  // requires for '/MANIFESTINPUT'
+                    &format!("/MANIFESTINPUT:{pkg_name}.exe.manifest"), // set default 'requestedExecutionLevel' to tell UAC doesn't emulate paths like for the old application
                     "/MANIFESTUAC:level='requireAdministrator'", // set custom 'requestedExecutionLevel' in manifest
                 ]);
 

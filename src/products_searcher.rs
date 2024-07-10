@@ -1,8 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
-use winreg::enums::HKEY_CURRENT_USER;
-use winreg::RegKey;
+use windows_registry::CURRENT_USER;
 
 pub(crate) struct Product {
     pub(crate) name: String,
@@ -55,78 +54,66 @@ pub(crate) fn products_searcher() -> Result<Vec<Product>, String> {
 
     let mut products = Vec::<Product>::with_capacity(10);
 
-    RegKey::predef(HKEY_CURRENT_USER).open_subkey(r"Software\ZennoLab").consume(|zl_root| {
-        zl_root.enum_keys().for_each(| key | {
-            key.consume(| key | {
-                if key.len() == 2 && key == key.to_uppercase() {
-                    let lang = key;
+    CURRENT_USER.open(r"Software\ZennoLab").consume(|zl_root| {
+        zl_root.keys().consume(| key_it | key_it.for_each(|key| {
+            if key.len() == 2 && key == key.to_uppercase() {
+                let lang = key;
 
-                    zl_root.open_subkey(lang.clone()).consume(|lang_key| {
-                        lang_key.enum_keys().for_each(|prod_name_res| {
-                            prod_name_res.consume(|prod_name| {
-                                lang_key.open_subkey(&prod_name).consume(|prod_key| {
-                                    prod_key.enum_keys().for_each(|ver_res| {
-                                        ver_res.consume(|ver| {
-                                            prod_key.open_subkey(&ver).consume(|ver_key| {
-                                                ver_key.get_value::<String, _>("SuccessInstall").consume(|install| {
-                                                        if install != "True" {
-                                                            println!(r"Найден недоустановленный продукт: '{prod_name} {ver} {lang}'");
-                                                        }
-                                                    }, |e| {
-                                                        println!(r"Не удалось получить статус установки продукта: '{prod_name} {ver} {lang}'. Инфо: {e}");
-                                                    });
+                zl_root.open(&lang).consume(|lang_key| lang_key.keys().consume(|prod_iter| prod_iter.for_each(|prod_name|
+                    lang_key.open(&prod_name).consume(|prod_key| prod_key.keys().consume(|ver_iter| ver_iter.for_each(|ver|
+                        prod_key.open(&ver).consume(|ver_key| {
+                            ver_key.get_string("SuccessInstall").consume(|install| {
+                                if install != "True" {
+                                    println!(r"Найден недоустановленный продукт: '{prod_name} {ver} {lang}'");
+                                }
+                            }, |e| {
+                                println!(r"Не удалось получить статус установки продукта: '{prod_name} {ver} {lang}'. Инфо: {e}");
+                            });
 
-                                                ver_key.get_value("InstallDir").consume(|install_path: String| {
-                                                    Product::new(
-                                                        prod_name.clone(),
-                                                        ver.clone(),
-                                                        lang.to_owned(),
-                                                        install_path,
-                                                    ).consume(|product| {
-                                                            println!("Найден продукт: '{}'", &product);
-                                                            products.push(product)
-                                                        }, |e| {
-                                                            println!("{}", e);
-                                                        });
-                                                }, |e| {
-                                                    println!(
-                                                        r"Не удалось получить путь установки продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
-                                                    );
-                                                });
-                                            }, |e| {
-                                                println!(
-                                                    r"Не удалось открыть раздел продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
-                                                );
-                                            });
-                                        }, |e| {
-                                            println!(
-                                                r"Ошибка при разборе имени раздела версии в разделе продукта: '{prod_name}' языка: '{lang}'. Инфо: '{e}'"
-                                            );
-                                        });
+                            ver_key.get_string("InstallDir").consume(|install_path: String| {
+                                Product::new(
+                                    prod_name.clone(),
+                                    ver.clone(),
+                                    lang.to_owned(),
+                                    install_path,
+                                ).consume(|product| {
+                                        println!("Найден продукт: '{}'", &product);
+                                        products.push(product)
+                                    }, |e| {
+                                        println!("{}", e);
                                     });
-                                }, |e| {
-                                    println!(
-                                        r"Не удалось открыть раздел продукта: '{prod_name}' языка: '{lang}'. Инфо: '{e}'"
-                                    );
-                                });
                             }, |e| {
                                 println!(
-                                    r"Ошибка при разборе имени раздела продукта в разделе языка: '{lang}'. Инфо: '{e}'"
+                                    r"Не удалось получить путь установки продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
                                 );
-                            });
-                        });
-                    }, |e|{
-                        println!(r"Не удалось открыть раздел языка: '{lang}'. Инфо: '{e}'");
-                    });
-                }
-            }, |e|{
-                println!(r"Не удалось получить раздел реестра в 'HKEY_CURRENT_USER\Software\ZennoLab'. Инфо: '{e}'");
-            });
-        });
-
-        }, |e| {
-            println!(r"Не удалось открыть 'HKEY_CURRENT_USER\Software\ZennoLab'. Инфо: '{e}'")
-        });
+                            })
+                        }, |e| {
+                            println!(
+                                r"Не удалось открыть раздел продукта: '{prod_name} {ver} {lang}'. Инфо: {e}"
+                            );
+                        })), |e| {
+                        println!(
+                            r"Ошибка при разборе имени раздела версии в разделе продукта: '{prod_name}' языка: '{lang}'. Инфо: '{e}'"
+                        );
+                    }), |e| {
+                        println!(
+                            r"Не удалось открыть раздел продукта: '{prod_name}' языка: '{lang}'. Инфо: '{e}'"
+                        );
+                    })
+                ), |e| {
+                    println!(
+                        r"Ошибка при разборе имени раздела продукта в разделе языка: '{lang}'. Инфо: '{e}'"
+                    );
+                }), |e|{
+                    println!(r"Не удалось открыть раздел языка: '{lang}'. Инфо: '{e}'");
+                })
+            }
+        }), |e|{
+            println!(r"Не удалось получить раздел реестра в 'HKEY_CURRENT_USER\Software\ZennoLab'. Инфо: '{e}'");
+        })
+    },|e| {
+        println!(r"Не удалось открыть 'HKEY_CURRENT_USER\Software\ZennoLab'. Инфо: '{e}'")
+    });
 
     if products.is_empty() {
         return Err(r"Не найден ни один установленный продукт.".to_string());
