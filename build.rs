@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -14,21 +15,10 @@ fn main() {
         "/VERBOSE",
         "/WX",
     ]);
-
-    // r"C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64"
-    let path = std::env::var("WIN_KITS_BIN_X64_PATH");
-    if let Ok(path) = path {
-        let sdk_path = PathBuf::from(path);
-
-        let mut mt_path = sdk_path.clone();
-        mt_path.push("mt.exe");
-
-        let mut rc_path = sdk_path.clone();
-        rc_path.push("rc.exe");
-
-        if sdk_path.exists() && sdk_path.is_dir() {
-            if mt_path.exists() && rc_path.exists() {
-                let authors = env!("CARGO_PKG_AUTHORS").replace(':', ", ");
+    
+    if let Some(mt_path) = find_exe_in_path("mt.exe") {
+        if let Some(rc_path) = find_exe_in_path("rc.exe") {
+            let authors = env!("CARGO_PKG_AUTHORS").replace(':', ", ");
 
                 let crate_toml_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
@@ -80,17 +70,16 @@ fn main() {
                 res_path.push("res.res");
 
                 println!(r#"cargo:rustc-link-arg={}"#, res_path.to_str().unwrap());
-            } else {
-                println!(r"cargo:warning=mt.exe or rc.exe don't exist in SDK.")
-            }
         } else {
-            println!(r"cargo:warning=SDK path doesn't exist.");
+            sdk_not_set_warn()
         }
     } else {
-        println!(
-            r"cargo:warning=Path to 'C:\Program Files (x86)\Windows Kits\10\bin\**ver**\x64' not specified."
-        )
+        sdk_not_set_warn()
     }
+}
+
+fn sdk_not_set_warn() {
+    println!(r"cargo:warning='C:\Program Files (x86)\Windows Kits\10\bin\**ver**\x64' not installed or not specified in PATH.")
 }
 
 fn rerun_if_changed(list: &[&str]) {
@@ -105,8 +94,8 @@ fn set_linker_args(args: &[&str]) {
     }
 }
 
-fn write_file(path_to_dir: &Path, file_fullname: &str, data: &str) {
-    let mut file_path = PathBuf::from(path_to_dir);
+fn write_file<P: AsRef<Path>>(path_to_dir: P, file_fullname: &str, data: &str) {
+    let mut file_path = PathBuf::from(path_to_dir.as_ref());
     file_path.push(file_fullname);
 
     let mut file = File::options()
@@ -118,8 +107,22 @@ fn write_file(path_to_dir: &Path, file_fullname: &str, data: &str) {
     file.write_all(data.as_bytes()).unwrap();
 }
 
-fn run(exe_path: &PathBuf, args: &[&str]) {
-    let rc_proc = Command::new(exe_path).args(args).spawn().unwrap();
+fn find_exe_in_path<P: AsRef<Path>>(exe_name: P) -> Option<PathBuf>
+{
+    env::var_os("PATH").and_then(|paths| {
+        env::split_paths(&paths).filter_map(|dir| {
+            let full_path = dir.join(&exe_name);
+            if full_path.is_file() {
+                Some(full_path)
+            } else {
+                None
+            }
+        }).next()
+    })
+}
+
+fn run<P: AsRef<Path>>(exe_path: P, args: &[&str]) {
+    let rc_proc = Command::new(exe_path.as_ref()).args(args).spawn().unwrap();
 
     let result = rc_proc.wait_with_output().unwrap();
     if !result.status.success() {

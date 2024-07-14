@@ -10,15 +10,14 @@
       "type": "cargo",
       "command": "build",
       "args": [
+        "--release",
+        "--artifact-dir",
+        "./.release",
+        "-Z",
+        "unstable-options",
       ],
       "runOptions": {
         "instanceLimit": 1,
-      },
-      "options": {
-        "cwd": "${workspaceFolder}",
-				"env": {
-					"WIN_KITS_BIN_X64_PATH": ""
-				},
       },
       "problemMatcher": [
         "$rustc"
@@ -27,7 +26,7 @@
         "echo": true,
         "reveal": "always",
         "focus": true,
-        "panel": "new",
+        "panel": "shared",
         "showReuseMessage": false,
         "clear": true,
         "revealProblems": "onProblem",
@@ -46,9 +45,6 @@
       },
       "type": "cargo",
       "command": "fmt",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
       "runOptions": {
         "instanceLimit": 1
       },
