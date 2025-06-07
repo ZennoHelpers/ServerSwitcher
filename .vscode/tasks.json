@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "icon": {
+        "id": "wrench",
+        "color": "terminal.ansiGreen"
+      },
+      "type": "cargo",
+      "command": "build",
+      "args": [
+        "--release",
+        "--artifact-dir",
+        "./.release",
+        "-Z",
+        "unstable-options",
+      ],
+      "runOptions": {
+        "instanceLimit": 1,
+      },
+      "problemMatcher": [
+        "$rustc"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true,
+        "revealProblems": "onProblem",
+        "close": false,
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false,
+      },
+    },
+  ]
+}

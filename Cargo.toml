@@ -1,0 +1,21 @@
+[package]
+name = "server-switcher"
+version = "1.0.0"
+description = "Server switcher for ZennoLab products."
+authors = ["Yuriy Zymlex <www.zymlex.com>", "ZennoHelpers <github.com/ZennoHelpers>"]
+edition = "2024"
+resolver = "3"
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+
+[[bin]]
+name="ServerSwitcher"
+path="src/main.rs"
+
+[dependencies]
+windows-registry = "0.5"
+quick-xml = "0.37.5"
+url = "2.5.4"
+zennolab-products-searcher = { git = "https://github.com/ZennoHelpers/ZennoLab-Products-Searcher.git" }
